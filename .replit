@@ -1,0 +1,71 @@
+modules = ["nodejs-24", "postgresql-16"]
+
+  [[artifacts]]
+  id = "artifacts/api-server"
+
+  [[artifacts]]
+  id = "artifacts/mockup-sandbox"
+
+  [deployment]
+  router = "application"
+  deploymentTarget = "autoscale"
+
+  [deployment.postBuild]
+  args = ["pnpm", "store", "prune"]
+  env = { "CI" = "true" }
+
+  [workflows]
+  runButton = "artifacts/spending-eras: web"
+
+  [[workflows.workflow]]
+  name = "artifacts/spending-eras: web"
+  author = "agent"
+
+  [workflows.workflow.metadata]
+  outputType = "webview"
+
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "PORT=20689 BASE_PATH=/ pnpm --filter @workspace/spending-eras run dev"
+  waitForPort = 20689
+
+  [[workflows.workflow]]
+  name = "artifacts/api-server: API Server"
+  author = "agent"
+
+  [workflows.workflow.metadata]
+  outputType = "console"
+
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
+  waitForPort = 8080
+
+  [[workflows.workflow]]
+  name = "artifacts/mockup-sandbox: Component Preview Server"
+  author = "agent"
+
+  [workflows.workflow.metadata]
+  outputType = "console"
+  isCanvasWorkflow = true
+
+  [[workflows.workflow.tasks]]
+  task = "shell.exec"
+  args = "PORT=8081 BASE_PATH=/__mockup pnpm --filter @workspace/mockup-sandbox run dev"
+
+  [agent]
+  stack = "PNPM_WORKSPACE"
+expertMode = true
+
+  [postMerge]
+  path = "scripts/post-merge.sh"
+  timeoutMs = 20000
+
+  [userenv]
+
+  [userenv.shared]
+
+  [nix]
+  channel = "stable-25_05"
+  packages = ["vim-full"]
+  

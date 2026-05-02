@@ -1,0 +1,459 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Spending Eras API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: plaid
+    description: Plaid integration
+  - name: eras
+    description: Spending eras analysis
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /plaid/create-link-token:
+    post:
+      operationId: createLinkToken
+      tags: [plaid]
+      summary: Create a Plaid Link token
+      responses:
+        "200":
+          description: Link token created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LinkTokenResponse"
+        "500":
+          description: Error creating link token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /plaid/exchange-token:
+    post:
+      operationId: exchangeToken
+      tags: [plaid]
+      summary: Exchange a public token for access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExchangeTokenBody"
+      responses:
+        "200":
+          description: Token exchanged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExchangeTokenResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /plaid/accounts:
+    get:
+      operationId: getAccounts
+      tags: [plaid]
+      summary: Get connected bank accounts
+      responses:
+        "200":
+          description: List of accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BankAccount"
+
+  /plaid/transactions/sync:
+    post:
+      operationId: syncTransactions
+      tags: [plaid]
+      summary: Sync transactions from Plaid (2 years)
+      responses:
+        "200":
+          description: Sync complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+        "400":
+          description: No account connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /eras:
+    get:
+      operationId: getEras
+      tags: [eras]
+      summary: Get all spending eras
+      responses:
+        "200":
+          description: List of spending eras
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SpendingEra"
+
+  /eras/analyze:
+    post:
+      operationId: analyzeEras
+      tags: [eras]
+      summary: Analyze transactions and generate spending eras
+      responses:
+        "200":
+          description: Eras generated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SpendingEra"
+        "400":
+          description: No transactions available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /eras/{id}:
+    get:
+      operationId: getEra
+      tags: [eras]
+      summary: Get a single era with full details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Era detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpendingEraDetail"
+        "404":
+          description: Era not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /eras/summary:
+    get:
+      operationId: getErasSummary
+      tags: [eras]
+      summary: Get high-level summary stats across all eras
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErasSummary"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    LinkTokenResponse:
+      type: object
+      properties:
+        linkToken:
+          type: string
+        expiration:
+          type: string
+      required:
+        - linkToken
+        - expiration
+
+    ExchangeTokenBody:
+      type: object
+      properties:
+        publicToken:
+          type: string
+        institutionName:
+          type: string
+      required:
+        - publicToken
+
+    ExchangeTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        accountId:
+          type: integer
+      required:
+        - success
+        - accountId
+
+    BankAccount:
+      type: object
+      properties:
+        id:
+          type: integer
+        institutionName:
+          type: string
+        accountName:
+          type: string
+        accountType:
+          type: string
+        mask:
+          type: ["string", "null"]
+        connectedAt:
+          type: string
+        transactionCount:
+          type: integer
+      required:
+        - id
+        - institutionName
+        - accountName
+        - accountType
+        - mask
+        - connectedAt
+        - transactionCount
+
+    SyncResult:
+      type: object
+      properties:
+        added:
+          type: integer
+        modified:
+          type: integer
+        removed:
+          type: integer
+        total:
+          type: integer
+      required:
+        - added
+        - modified
+        - removed
+        - total
+
+    SpendingEra:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        tagline:
+          type: string
+        season:
+          type: string
+        year:
+          type: integer
+        startDate:
+          type: string
+        endDate:
+          type: string
+        totalSpent:
+          type: number
+        topCategory:
+          type: string
+        colorTheme:
+          type: string
+        emoji:
+          type: string
+        rank:
+          type: integer
+        description:
+          type: string
+        categoryVibe:
+          type: string
+        topCategories:
+          type: array
+          items:
+            type: string
+        topMerchants:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopMerchant"
+      required:
+        - id
+        - name
+        - tagline
+        - season
+        - year
+        - startDate
+        - endDate
+        - totalSpent
+        - topCategory
+        - colorTheme
+        - emoji
+        - rank
+        - description
+        - topCategories
+        - topMerchants
+
+    CategoryBreakdown:
+      type: object
+      properties:
+        category:
+          type: string
+        amount:
+          type: number
+        percentage:
+          type: number
+        transactionCount:
+          type: integer
+      required:
+        - category
+        - amount
+        - percentage
+        - transactionCount
+
+    TopMerchant:
+      type: object
+      properties:
+        name:
+          type: string
+        amount:
+          type: number
+        visits:
+          type: integer
+        category:
+          type: string
+      required:
+        - name
+        - amount
+        - visits
+        - category
+
+    SpendingEraDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        tagline:
+          type: string
+        description:
+          type: string
+        season:
+          type: string
+        year:
+          type: integer
+        startDate:
+          type: string
+        endDate:
+          type: string
+        totalSpent:
+          type: number
+        topCategory:
+          type: string
+        colorTheme:
+          type: string
+        emoji:
+          type: string
+        rank:
+          type: integer
+        categoryVibe:
+          type: string
+        categoryBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryBreakdown"
+        topMerchants:
+          type: array
+          items:
+            $ref: "#/components/schemas/TopMerchant"
+        weeklyAverage:
+          type: number
+        peakWeek:
+          type: string
+        funFact:
+          type: string
+      required:
+        - id
+        - name
+        - tagline
+        - description
+        - season
+        - year
+        - startDate
+        - endDate
+        - totalSpent
+        - topCategory
+        - colorTheme
+        - emoji
+        - rank
+        - categoryVibe
+        - categoryBreakdown
+        - topMerchants
+        - weeklyAverage
+        - peakWeek
+        - funFact
+
+    ErasSummary:
+      type: object
+      properties:
+        totalEras:
+          type: integer
+        totalSpent:
+          type: number
+        biggestEra:
+          type: string
+        mostFrequentCategory:
+          type: string
+        dateRangeStart:
+          type: string
+        dateRangeEnd:
+          type: string
+        transactionCount:
+          type: integer
+        connected:
+          type: boolean
+      required:
+        - totalEras
+        - totalSpent
+        - biggestEra
+        - mostFrequentCategory
+        - dateRangeStart
+        - dateRangeEnd
+        - transactionCount
+        - connected
